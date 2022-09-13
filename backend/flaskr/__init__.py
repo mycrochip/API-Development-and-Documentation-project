@@ -1,9 +1,11 @@
 import json
 import os
+from unicodedata import category
 from flask import Flask, request, abort, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
+import traceback
 
 from models import setup_db, Question, Category
 
@@ -26,13 +28,13 @@ def create_app(test_config=None):
     setup_db(app)
 
     """
-    @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
+    Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
     CORS(app)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     """
-    @TODO: Use the after_request decorator to set Access-Control-Allow
+    Use the after_request decorator to set Access-Control-Allow
     """
     @app.after_request
     def after_request(response):
@@ -48,7 +50,6 @@ def create_app(test_config=None):
         return response
 
     """
-    @TODO:
     Create an endpoint to handle GET requests
     for all available categories.
     """
@@ -73,7 +74,6 @@ def create_app(test_config=None):
             })
 
     """
-    @TODO:
     Create an endpoint to handle GET requests for questions,
     including pagination (every 10 questions).
     This endpoint should return a list of questions,
@@ -98,7 +98,7 @@ def create_app(test_config=None):
             category_items[data["id"]] = data["type"]
         
         # Implement current_category - How?
-        current_category = "All"
+        current_category = category_items["1"]
 
         return jsonify({
             "success": True,
@@ -109,7 +109,6 @@ def create_app(test_config=None):
         })
 
     """
-    @TODO:
     Create an endpoint to DELETE question using a question ID.
 
     TEST: When you click the trash icon next to a question, the question will be removed.
@@ -132,11 +131,11 @@ def create_app(test_config=None):
                 "totalQuestions": len(all_questions)
             })
         except:
+            traceback.print_exc()
             abort(422)
 
 
     """
-    @TODO:
     Create an endpoint to POST a new question,
     which will require the question and answer text,
     category, and difficulty score.
@@ -147,7 +146,6 @@ def create_app(test_config=None):
     """
 
     """
-    @TODO:
     Create a POST endpoint to get questions based on a search term.
     It should return any questions for whom the search term
     is a substring of the question.
@@ -160,11 +158,11 @@ def create_app(test_config=None):
     def add_question():
         body = request.get_json()
 
-        new_question = body.get("question", None)
-        new_answer = body.get("answer", None)
-        new_difficulty = body.get("difficulty", None)
-        new_category = body.get("category", None)
-        search_term = body.get("searchTerm", None)
+        new_question = body.get("question")
+        new_answer = body.get("answer")
+        new_difficulty = body.get("difficulty")
+        new_category = body.get("category")
+        search_term = body.get("searchTerm")
 
         try:
             if search_term:
@@ -181,7 +179,7 @@ def create_app(test_config=None):
                     "success": True,
                     "questions": current_questions,
                     "totalQuestions": len(selection),
-                    "currentCategory": "None"
+                    "currentCategory": None
                 })
             
             if not (new_question and new_answer and new_difficulty and new_category):
@@ -200,14 +198,14 @@ def create_app(test_config=None):
                 "success": True,
                 "questions": [question.format()],
                 "totalQuestions": len(Question.query.all()),
-                "currentCategory": "All"
+                "currentCategory": question.category
             })
         except:
+            traceback.print_exc()
             abort(422)
 
 
     """
-    @TODO:
     Create a GET endpoint to get questions based on category.
 
     TEST: In the "List" tab / main screen, clicking on one of the
@@ -234,7 +232,6 @@ def create_app(test_config=None):
 
 
     """
-    @TODO:
     Create a POST endpoint to get questions to play the quiz.
     This endpoint should take category and previous question parameters
     and return a random questions within the given category,
@@ -250,7 +247,7 @@ def create_app(test_config=None):
 
         try:
             previous_questions_id = body.get("previous_questions", "", type=list)
-            quiz_category = body.get("quiz_category", "All")
+            quiz_category = body.get("quiz_category", 1)
             
             # get the corresponding category id for the quiz category given
             category_id = quiz_category.id
@@ -263,30 +260,32 @@ def create_app(test_config=None):
                 valid_random_index = random.randint(0, len(category_questions))
                 selected_question = category_questions[valid_random_index]
                 selected_question_id = selected_question.id
+                # Prevent an infinite loop...
+                if previous_questions_id == len(category_questions) - 1:
+                    previous_questions_id = []
+                else:
+                    previous_questions_id.append(selected_question_id) #Would be discarded anyways
+                # ...which could be caused from here
                 if selected_question_id in previous_questions_id:
                     continue
+
                 selected_question = selected_question.format()
                 break
 
-            if previous_questions_id == len(category_questions) - 1:
-                previous_questions_id = []
-            else:
-                previous_questions_id.append(selected_question_id)
-
             return jsonify({
                 "success": True,
-                "question": selected_question,
-                "previous_questions": previous_questions_id
+                "question": selected_question
+                #, "previousQuestions": previous_questions_id
             })
     
         except:
+            traceback.print_exc()
             abort(422)
 
 
 
 
     """
-    @TODO:
     Create error handlers for all expected errors
     including 404 and 422.
     """
